@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Treemap Diagram</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+	  <meta name="description" content="This is a Treemap Diagram built using D3.js">
+	  <meta name="keywords" content="HTML, CSS, JAVASCRIPT, D3.js">
+	  <meta name="author" content="Edward Njoroge">
+    <script src="https://d3js.org/d3.v4.min.js"></script>
+    <style>
+      body {
+        text-align: center;
+      }
+      #main {
+        position: absolute;
+        left: 15%;
+        width: 1000px;
+      }
+      a {
+        text-decoration: none;
+      }
+    </style>
+  </head>
+  <body>
+    <a href="?data=videogames">Video Game Data Set</a> |
+    <a href="?data=movies">Movies Data Set</a> |
+    <a href="?data=kickstarter">Kickstarter Data Set</a>
+    <h1 id="title"></h1>
+    <h4 id="description"></h4>
+    <div id="main"></div>
+    <script>
+      var datasets = {
+        "videogames":{
+          "title": "Video Game Sales",
+          "description": "Top 100 Most Sold Video Games Grouped by Platform",
+          "url":"https://cdn.rawgit.com/freeCodeCamp/testable-projects-fcc/a80ce8f9/src/data/tree_map/video-game-sales-data.json"
+        },
+        "movies":{
+          "title": "Movie Sales",
+          "description": "Top 100 Highest Grossing Movies Grouped By Genre",
+          "url":"https://cdn.rawgit.com/freeCodeCamp/testable-projects-fcc/a80ce8f9/src/data/tree_map/movie-data.json"
+        },
+        "kickstarter":{
+          "title": "Kickstarter Pledges",
+          "description": "Top 100 Most Pledged Kickstarter Campaigns Grouped By Category",
+          "url":"https://cdn.rawgit.com/freeCodeCamp/testable-projects-fcc/a80ce8f9/src/data/tree_map/kickstarter-funding-data.json"
+        }}
+      var urlParams = new URLSearchParams(window.location.search);
+      var defaultTreemap = "videogames"
+      var currentDataset = datasets[urlParams.get('data') || defaultTreemap];
+      document.getElementById("title").innerHTML = currentDataset["title"];
+      document.getElementById("description").innerHTML = currentDataset["description"];
+      var color = d3.scaleOrdinal().range(d3.schemeCategory20);
+      var tooltip = d3.select("body").append("div")
+        .style('width', '500px')
+        .style('height', '70px')
+        .style('position', 'relative')
+        .style('background', '#d1e0e0')
+        .style('border', '1px solid grey')
+        .style('opacity', '0')
+        .style('pointer-events', 'none');//create tooltip div
+      var treemap = d3.treemap().size([1000, 600]);
+      var treemapCanvas = d3.select("#main").append("svg")
+        .attr("width", 1000)
+        .attr("height", 600);//create treemap canvas
+      var legendCanvas = d3.select("#main").append("svg")
+        .attr("width", 450)
+        .attr("height", 200);//create legend canvas
+      d3.json(currentDataset["url"], function(error, data) {
+        if (error) throw error;
+        var root = d3.hierarchy(data, function(d) { return d["children"]})
+          .sum(function(d) { return d["value"] })
+          .sort(function(a, b) { return d3.descending(a["height"], b["height"]) || d3.descending(a["value"], b["value"]); });//manipulate the dataset
+        var tree = treemap(root);//create tree
+        var map = treemapCanvas.selectAll("g").data(tree.leaves()).enter().append("g")
+            .attr("transform", function(d) { return "translate(" + d.x0 + "," + d.y0 + ")"; });//create a treemap
+        map.append("rect")
+          .attr("class", "node")
+          .attr("width", function(d) { return Math.max(0, d.x1-d.x0) + "px" })
+          .attr("height", function(d) { return Math.max(0, d.y1-d.y0) + "px" })
+          .attr("fill", function(d) { return color(d["parent"]["data"]["name"]) })
+          .attr("stroke", "white")
+          .on('mouseover', function(d) {
+            tooltip.transition()
+              .style('opacity', '1')
+            tooltip.html("Name: " + d["data"]["name"] + "<br/ >Category: " + d["data"]["category"] + "<br />Value: " + d["data"]["value"])
+              .style('left', ((d3.event.pageX)+'px'))
+              .style('top', ((d3.event.pageY-100)+'px'))
+          })
+          .on('mouseout', function(d) {
+            tooltip.transition()
+              .style('opacity', '0')
+          });//create the treemap's nodes
+        map.append("text").selectAll("tspan").data(function(d) { return d["data"]["name"].split(/(?=[A-Z][^A-Z])/g); }).enter().append("tspan")
+          .attr("cursor", "default")
+          .attr("x", 4)
+          .attr("y", function(d, i) { return 13+i*13; })
+          .text(function(d) { return d; });
+          var categories = tree.leaves().map(function(nodes){
+            return nodes["data"]["category"];
+          });//label the treemap's nodes
+        categories = categories.filter(function(category, index, self){
+          return self.indexOf(category)===index;
+        })//create an array of the dataset's categories
+        var legend = legendCanvas.selectAll(".legend").data(categories).enter().append("g")
+          .attr("class", "legend")
+          .attr("transform", function(d, i) {
+            return 'translate(' +
+            ((i%3)*150) + ',' +
+            ((Math.floor(i/3))*15 + (10*(Math.floor(i/3)))) + ')';
+          });//create a legend
+        legend.append("rect")
+          .attr("width", 15)
+          .attr("height", 15)
+          .style("fill", function(d) { return color(d); });//create the legend's rectangles
+        legend.append("text")
+          .attr("x", 18)
+          .attr("y", 13)
+          .text(function(d) { return d; });//label the legend's rectangles
+      });
+    </script>
+  </body>
+</html>
